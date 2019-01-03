@@ -1,2 +1,6 @@
 # CS467 Quadruped Project
-[Add content]
+[Add description]
+## Current items
+- Servo centering code
+- Parts files
+- Datasheets
