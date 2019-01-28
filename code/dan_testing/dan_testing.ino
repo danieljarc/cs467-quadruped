@@ -9,7 +9,6 @@
 #define COXA_LF 0
 #define FEMUR_LF 1
 #define TIBIA_LF 2
-
 #define COXA_LENGTH 2.5     //coxa (shoulder) to femur in cm
 #define FEMUR_LENGTH 4.3    //femur to tibia in cm
 #define TIBIA_LENGTH 7.1    //tibia to foot in cm
@@ -27,19 +26,19 @@ void setup() {
   Serial.begin(9600);
   pwm.begin();
   pwm.setPWMFreq(60); 
-  SERVO_MIN[COXA_LF]=120;
-  SERVO_MAX[COXA_LF]=590;
-  SERVO_MIN[FEMUR_LF]=130;
-  SERVO_MAX[FEMUR_LF]=590;
-  SERVO_MIN[TIBIA_LF]=120;
-  SERVO_MAX[TIBIA_LF]=600;
+  SERVO_MIN[COXA_LF] = 120;
+  SERVO_MAX[COXA_LF] = 590;
+  SERVO_MIN[FEMUR_LF] = 130;
+  SERVO_MAX[FEMUR_LF] = 590;
+  SERVO_MIN[TIBIA_LF] = 120;
+  SERVO_MAX[TIBIA_LF] = 600;
   yield();
 }
 
 void loop() {
 
-  float target_x = 10.0;   //cm
-  float target_y = 10.0;   //cm
+  float target_x = 10.0;  //cm
+  float target_y = 10.0;  //cm
   float target_z = 2.0;   //cm
 
   float theta1 = 0.0;     //radians
@@ -57,7 +56,7 @@ void loop() {
  
   //T1 -- COXA
   theta1 = atan(target_x/target_y); //eq. 1
-  t1_deg = ((theta1/PI) * 180.0) + 45; //sevo deg (45 offset)
+  t1_deg = ((theta1/PI) * 180.0) + 45; //servo deg (45 offset)
 
   if (theta1 != t1_tmp) {
     pwm.setPWM(COXA_LF, 0, map(t1_deg, 0, 180, SERVO_MIN[COXA_LF], SERVO_MAX[COXA_LF]));
@@ -73,7 +72,7 @@ void loop() {
   phi1 = atan(L2/target_z); //eq. 5
   phi2 = acos((pow(TIBIA_LENGTH,2) - pow(FEMUR_LENGTH,2) - pow(L1,2)) / (-2 * FEMUR_LENGTH * L1)); // eq. 6
   theta2 = phi1 + phi2; //eq.7
-  t2_deg = (theta2/PI) * 180.0;  //sevo deg (no offset)
+  t2_deg = (theta2/PI) * 180.0;  //servo deg (no offset)
   
   if (theta2 != t2_tmp) {
     pwm.setPWM(FEMUR_LF, 0, map(t2_deg, 0, 180, SERVO_MIN[FEMUR_LF], SERVO_MAX[FEMUR_LF]));
@@ -84,7 +83,7 @@ void loop() {
 
   //T3 -- TIBIA
   theta3 = acos((pow(L1,2) - pow(TIBIA_LENGTH,2) - pow(FEMUR_LENGTH,2))/(-2 * TIBIA_LENGTH * FEMUR_LENGTH)); //eq. 8
-  t3_deg = (theta3/PI) * 180.0;  //sevo deg (no offset)
+  t3_deg = (theta3/PI) * 180.0;  //servo deg (no offset)
   
   if (theta3 != t3_tmp) {
     pwm.setPWM(TIBIA_LF, 0, map(t3_deg, 0, 180, SERVO_MIN[TIBIA_LF], SERVO_MAX[TIBIA_LF]));
