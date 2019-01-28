@@ -10,8 +10,8 @@
 
 // Min and max values for individual servos (150 to 600 default). Values are different for every servo. 
 // Change values until servo reaches mechanical min and max during tests... 
-const int servo_min[12] = { 120, 115, 120, 185, 175, 110, 120, 110, 110, 120, 155, 163 };
-const int servo_max[12] = { 600, 590, 590, 585, 600, 600, 600, 570, 580, 570, 570, 570 };
+const int servo_min[12] = { 200, 115, 120, 185, 175, 110, 120, 110, 110, 120, 155, 163 };
+const int servo_max[12] = { 500, 590, 590, 585, 600, 600, 600, 570, 580, 570, 570, 570 };
 
 int servo;
 int deg;
