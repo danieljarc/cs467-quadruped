@@ -37,8 +37,8 @@ void setup() {
 void loop() {
 
   double x = 0.0;   //cm
-  double y = 6.0;   //cm
-  double z = 4.0;   //cm
+  double y = 6.8;   //cm
+  double z = 7.1;   //cm
 
   double theta1 = 0.0;      //radians
   double theta2 = 0.0;      //radians
@@ -47,13 +47,13 @@ void loop() {
   double t2_deg = 0.0;      //deg
   double t3_deg = 0.0;      //deg
   
-  double a1 = 0.0;          //radians
-  double a2 = 0.0;          //radians
+  double phi1 = 0.0;        //radians
+  double phi2 = 0.0;        //radians
+  double L0 = 0.0;          //cm
   double L1 = 0.0;          //cm
-  double L = 0.0;           //cm
-  double z_offset = 7.0;    //cm
+  double L2 = 0.0;          //cm
   
-  //T1 -- COXA ANGLE (WORKS)
+  //T1 -- COXA ANGLE 
   theta1 = atan2(x, y); //eq. 1
   t1_deg = ((theta1/PI) * 180.0) + 45; //servo deg (45 degree offset)
   
@@ -65,13 +65,14 @@ void loop() {
   }
   
   //T2 -- FEMUR ANGLE
-  int test = pow(2,2);
-  L1 = sqrt(pow(x,2) + pow(y,2)); //eq. 2
-  L = sqrt(pow(z_offset,2) + pow((L1 - COXA_LENGTH),2)); //eq. 3
-  a1 = acos(z_offset/L); //eq. 4
-  a2 = acos((pow(FEMUR_LENGTH,2) + pow(L,2) - pow(TIBIA_LENGTH,2)) / (2 * FEMUR_LENGTH * L)); // eq. 5
-  theta2 = a1 + a2; //eq.6
-  t2_deg = (theta2/PI) * 180.0;  //servo deg (no offset)
+  L0 = sqrt(pow(x,2) + pow(y,2));
+  L1 = L0 - COXA_LENGTH;
+  L2 = sqrt(pow(L1,2) + pow(z,2));
+  phi1 = atan(L1 / fabs(z));
+  phi2 = acos((pow(L2,2) + pow(FEMUR_LENGTH,2) - pow(TIBIA_LENGTH,2)) / (2 * L2 * FEMUR_LENGTH));
+  beta = acos((pow(FEMUR_LENGTH,2) + pow(TIBIA_LENGTH,2) - pow(L2,2)) / (2 * FEMUR_LENGTH * TIBIA_LENGTH));
+  theta2 = phi1 + phi2;
+  t2_deg = (theta2/PI) * 180.0;
   
   if (t2_deg > 180.0) {
     t2_deg = 180.0;
@@ -81,8 +82,8 @@ void loop() {
   }
   
   //T3 -- TIBIA ANGLE
-  theta3 = acos((pow(FEMUR_LENGTH,2) + pow(TIBIA_LENGTH,2) - pow(L,2))/(2 * FEMUR_LENGTH * TIBIA_LENGTH)); //eq. 7
-  t3_deg = (theta3/PI) * 180.0;  //servo deg (no offset)
+  theta3 = (PI - beta);
+  t3_deg = (theta3/PI) * 180.0;
   
   if (t3_deg > 180.0) {
     t3_deg = 180.0;
@@ -93,16 +94,14 @@ void loop() {
     
   if ((theta1 != t1_tmp) || (theta2 != t2_tmp) || (theta3 != t3_tmp)) {
     
-    pwm.setPWM(COXA_LF, 0, map(t1_deg, 0, 180, SERVO_MIN[COXA_LF], SERVO_MAX[COXA_LF]));
-    pwm.setPWM(FEMUR_LF, 0, map(t2_deg, 0, 180, SERVO_MIN[FEMUR_LF], SERVO_MAX[FEMUR_LF]));
-    pwm.setPWM(TIBIA_LF, 0, map(t3_deg, 0, 180, SERVO_MIN[TIBIA_LF], SERVO_MAX[TIBIA_LF])); 
+    //pwm.setPWM(COXA_LF, 0, map(t1_deg, 0, 180, SERVO_MIN[COXA_LF], SERVO_MAX[COXA_LF]));
+    //pwm.setPWM(FEMUR_LF, 0, map(t2_deg, 0, 180, SERVO_MIN[FEMUR_LF], SERVO_MAX[FEMUR_LF]));
+    //pwm.setPWM(TIBIA_LF, 0, map(t3_deg, 0, 180, SERVO_MIN[TIBIA_LF], SERVO_MAX[TIBIA_LF])); 
     t1_tmp = theta1;
     t2_tmp = theta2;
     t3_tmp = theta3;
 
-    // DEBUG....
-    Serial.print("test: ");
-    Serial.println(test);   
+    // DEBUG....   
     Serial.println("---INPUT----");
     Serial.print("x: ");
     Serial.println(x);
@@ -111,14 +110,18 @@ void loop() {
     Serial.print("z: ");
     Serial.println(z);
     Serial.println("---CALC----");
+    Serial.print("L0: ");
+    Serial.println(L0);
     Serial.print("L1: ");
     Serial.println(L1);
-    Serial.print("L: ");
-    Serial.println(L);
-    Serial.print("a1: ");
-    Serial.println(a1);
-    Serial.print("a2: ");
-    Serial.println(a2);
+    Serial.print("L2: ");
+    Serial.println(L2);
+    Serial.print("phi1: ");
+    Serial.println(phi1);
+    Serial.print("phi2: ");
+    Serial.println(phi2);
+    Serial.print("beta: ");
+    Serial.println(beta);
     Serial.println("---OUTPUT----");
     Serial.print("THETA1: ");
     Serial.println(t1_deg);    
