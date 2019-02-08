@@ -37,8 +37,8 @@ void setup() {
 void loop() {
 
   double x = 0.0;   //cm
-  double y = 6.8;   //cm
-  double z = 7.1;   //cm
+  double y = 9.8;   //cm
+  double z = -3.1;   //cm
 
   double theta1 = 0.0;      //radians
   double theta2 = 0.0;      //radians
@@ -49,20 +49,14 @@ void loop() {
   
   double phi1 = 0.0;        //radians
   double phi2 = 0.0;        //radians
+  double beta = 0.0;        //radians
   double L0 = 0.0;          //cm
   double L1 = 0.0;          //cm
   double L2 = 0.0;          //cm
   
   //T1 -- COXA ANGLE 
-  theta1 = atan2(x, y); //eq. 1
-  t1_deg = ((theta1/PI) * 180.0) + 45; //servo deg (45 degree offset)
-  
-  if (t1_deg > 180.0) {
-    t1_deg = 180.0;
-  }
-  if (t1_deg < 0.0) {
-    t1_deg = 0.0;
-  }
+  theta1 = atan2(x, y);
+  t1_deg = ((theta1/PI) * 180.0) + 45;
   
   //T2 -- FEMUR ANGLE
   L0 = sqrt(pow(x,2) + pow(y,2));
@@ -74,29 +68,18 @@ void loop() {
   theta2 = phi1 + phi2;
   t2_deg = (theta2/PI) * 180.0;
   
-  if (t2_deg > 180.0) {
-    t2_deg = 180.0;
-  }
-  if (t2_deg < 0.0) {
-    t2_deg = 0.0;
-  }
   
   //T3 -- TIBIA ANGLE
   theta3 = (PI - beta);
   t3_deg = (theta3/PI) * 180.0;
   
-  if (t3_deg > 180.0) {
-    t3_deg = 180.0;
-  }
-  if (t3_deg < 0.0) {
-    t3_deg = 0.0;
-  }
-    
+
   if ((theta1 != t1_tmp) || (theta2 != t2_tmp) || (theta3 != t3_tmp)) {
     
-    //pwm.setPWM(COXA_LF, 0, map(t1_deg, 0, 180, SERVO_MIN[COXA_LF], SERVO_MAX[COXA_LF]));
-    //pwm.setPWM(FEMUR_LF, 0, map(t2_deg, 0, 180, SERVO_MIN[FEMUR_LF], SERVO_MAX[FEMUR_LF]));
-    //pwm.setPWM(TIBIA_LF, 0, map(t3_deg, 0, 180, SERVO_MIN[TIBIA_LF], SERVO_MAX[TIBIA_LF])); 
+    pwm.setPWM(COXA_LF, 0, map(t1_deg, 0, 180, SERVO_MIN[COXA_LF], SERVO_MAX[COXA_LF]));
+    pwm.setPWM(FEMUR_LF, 0, map(t2_deg, 0, 180, SERVO_MIN[FEMUR_LF], SERVO_MAX[FEMUR_LF]));
+    pwm.setPWM(TIBIA_LF, 0, map(t3_deg, 0, 180, SERVO_MIN[TIBIA_LF], SERVO_MAX[TIBIA_LF])); 
+
     t1_tmp = theta1;
     t2_tmp = theta2;
     t3_tmp = theta3;
