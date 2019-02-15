@@ -5,73 +5,69 @@
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
 
-//General definitions
-#define dt 5
-
-//Body specific definitions
-#define X 0
-#define Y 1
-#define Z 2
+//Body definitions
+#define X 0            
+#define Y 1             
+#define Z 2             
 #define ROLL 0
 #define PITCH 1
 #define YAW 2
 
-//Leg specific definitions
-#define LEGS 1          //Leg count, 1 for testing...
-#define LEG_1 0         //Right front
-#define LEG_2 1         //Right rear
-#define LEG_3 2         //Left rear
-#define LEG_4 3         //Left front
-#define COXA_CURRENT 0
-#define COXA_TARGET 1
-#define FEMUR_CURRENT 2
-#define FEMUR_TARGET 3
-#define TIBIA_CURRENT 4
-#define TIBIA_TARGET 5
-#define COXA_LENGTH 1.0   //cm
-#define FEMUR_LENGTH 1.0  //cm
-#define TIBIA_LENGTH 1.0  //cm
+//Leg definitions
+#define LEG_1 0
+#define LEG_2 1
+#define LEG_3 2
+#define LEG_4 3
+#define COXA 0
+#define FEMUR 1
+#define TIBIA 2
+#define COXA_LENGTH 2.5f 
+#define FEMUR_LENGTH 4.3f
+#define TIBIA_LENGTH 7.1f
+#define LEGS 4
+#define LEG_SERVOS 3
 
 //Servo shield
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
-//Angles and positions...
+//Stores body and leg angles/positions
 float bodyAngle[3];
 float bodyPos[3];
-float legAngle[4][6];
+float legAngle[4][3];
 float legPos[4][3];
 
-//bodyAngle[ROLL]....bodyAngle[PITCH]....bodyAngle[YAW]
-//bodyPos[X].........bodyPos[Y]..........bodyPos[Z]
+//Stores PWM min and max values, pin map, degree min/max for servo
+int pwmMin[4][3];
+int pwmMax[4][3];
+int servoPin[4][3];
+int servoDegMin[4][3];
+int servoDegMax[4][3];
 
-//legAngle[LEG_1][COXA_CURRENT]....legAngle[LEG_2][COXA_CURRENT]....legAngle[LEG_3][COXA_CURRENT]....legAngle[LEG_4][COXA_CURRENT]
-//legAngle[LEG_1][COXA_TARGET].....legAngle[LEG_2][COXA_TARGET].....legAngle[LEG_3][COXA_TARGET].....legAngle[LEG_4][COXA_TARGET]
-//legAngle[LEG_1][FEMUR_CURRENT]...legAngle[LEG_2][FEMUR_CURRENT]...legAngle[LEG_3][FEMUR_CURRENT]...legAngle[LEG_4][FEMUR_CURRENT]
-//legAngle[LEG_1][FEMUR_TARGET]....legAngle[LEG_2][FEMUR_TARGET]....legAngle[LEG_3][FEMUR_TARGET]....legAngle[LEG_4][FEMUR_TARGET]
-//legAngle[LEG_1][TIBIA_CURRENT]...legAngle[LEG_2][TIBIA_CURRENT]...legAngle[LEG_3][TIBIA_CURRENT]...legAngle[LEG_4][TIBIA_CURRENT]
-//legAngle[LEG_1][TIBIA_TARGET]....legAngle[LEG_2][TIBIA_TARGET]....legAngle[LEG_3][TIBIA_TARGET]....legAngle[LEG_4][TIBIA_TARGET]
-
-//legPos[LEG_1][X]...legPos[LEG_2][X]...legPos[LEG_3][X]...legPos[LEG_4][X]
-//legPos[LEG_1][Y]...legPos[LEG_2][Y]...legPos[LEG_3][Y]...legPos[LEG_4][Y]
-//legPos[LEG_1][Z]...legPos[LEG_2][Z]...legPos[LEG_3][Z]...legPos[LEG_4][Z]
-
-//Struct used for leg IK solutions
-struct IKSolution {
+//Used for IK calculations
+struct Solution {
   bool possible[4]; 
-  float coxa_angle[4]; 
-  float femur_angle[4];
-  float tibia_angle[4];
+  float legAngle[4][3];
   float legPos[4][3];
 };
 
-//Conversion to degrees
-float toDeg(float rad){
-  return RAD_TO_DEG*rad;
+//Save leg solution values
+void setLegValues(struct Solution *sol) {
+  for(int i=0;i<4;i++){
+    for(int j=0;j<3;j++){
+      legPos[i][j]=sol->legPos[i][j];
+      legAngle[i][j]=sol->legAngle[i][j];
+    }  
+  } 
 }
 
-//Conversion to radians
-float toRad(float deg){
-  return DEG_TO_RAD*deg;
+//Save body values
+void setBodyValues(float u, float v, float w, float x, float y, float z) {
+  bodyAngle[ROLL]=u;
+  bodyAngle[PITCH]=v;
+  bodyAngle[YAW]=w;
+  bodyPos[X]=x;
+  bodyPos[Y]=y;
+  bodyPos[Z]=z;
 }
 
 //Prints body info...
@@ -81,15 +77,15 @@ void printBodyInfo(){
   Serial.println("---------");
   Serial.print("X: ");
   Serial.print(bodyPos[X]); 
-  Serial.print(" Y: ");
+  Serial.print(", Y: ");
   Serial.print(bodyPos[Y]);
-  Serial.print(" Z: ");
-  Serial.println(bodyPos[Z]); 
-  Serial.print("ROLL (u): ");
+  Serial.print(", Z: ");
+  Serial.print(bodyPos[Z]); 
+  Serial.print(", Roll(u): ");
   Serial.print(bodyAngle[ROLL]);
-  Serial.print(" PITCH (v): ");
+  Serial.print(", Pitch(v): ");
   Serial.print(bodyAngle[PITCH]); 
-  Serial.print(" YAW (w): ");
+  Serial.print(", Yaw(w): ");
   Serial.println(bodyAngle[YAW]);
 }
 
@@ -102,142 +98,150 @@ void printLegInfo(int leg){
   Serial.println("----------");
   Serial.print("X: ");
   Serial.print(legPos[leg][X]); 
-  Serial.print(" Y: ");
+  Serial.print(", Y: ");
   Serial.print(legPos[leg][Y]);
-  Serial.print(" Z: ");
-  Serial.println(legPos[leg][Z]); 
-//  Serial.print("COXA: ");
-//  Serial.print(legAngle[leg][COXA_CURRENT]);
-//  Serial.print("/");
-//  Serial.print(legAngle[leg][COXA_TARGET]);
-//  Serial.print(" FEMUR: ");
-//  Serial.print(legAngle[leg][FEMUR_CURRENT]);
-//  Serial.print("/");
-//  Serial.print(legAngle[leg][FEMUR_TARGET]);  
-//  Serial.print(" TIBIA: ");
-//  Serial.print(legAngle[leg][TIBIA_CURRENT]);
-//  Serial.print("/");
-//  Serial.println(legAngle[leg][TIBIA_TARGET]);
+  Serial.print(", Z: ");
+  Serial.print(legPos[leg][Z]); 
+  Serial.print(", Coxa Angle: ");
+  Serial.print(legAngle[leg][COXA]);
+  Serial.print(", Femur Angle: ");
+  Serial.print(legAngle[leg][FEMUR]);  
+  Serial.print(", Tibia Angle: ");
+  Serial.println(legAngle[leg][TIBIA]);
 }
 
-//Prints IK Solution Info...
-void printIKSolution(struct IKSolution *sol){
-  
-  Serial.println("---------------");
-  Serial.println("IK Solution Set");
-  Serial.println("---------------");
-  
+//Prints Solution struct info...
+void printIKSolution(struct Solution *sol){
+  Serial.println("-------------");
+  Serial.println("Solution Info");
+  Serial.println("-------------");
   for(int i=0;i<LEGS;i++){
-    Serial.print("possible[");
+    Serial.print("Leg ");
     Serial.print(i);
-    Serial.print("]: ");
+    Serial.print(" - Possible: ");
     Serial.print(sol->possible[i]);
-    Serial.print(", coxa_angle[");
-    Serial.print(i);
-    Serial.print("]: ");
-    Serial.print(sol->coxa_angle[i]);
-    Serial.print(", femur_angle[");
-    Serial.print(i);
-    Serial.print("]: ");
-    Serial.print(sol->femur_angle[i]);
-    Serial.print(", tibia_angle[");
-    Serial.print(i);
-    Serial.print("]: ");
-    Serial.println(sol->tibia_angle[i]);
+    Serial.print(", X: ");
+    Serial.print(sol->legPos[i][X]);
+    Serial.print(", Y: ");
+    Serial.print(sol->legPos[i][Y]);
+    Serial.print(", Z: ");
+    Serial.print(sol->legPos[i][Z]);
+    Serial.print(", Coxa Angle: ");
+    Serial.print(sol->legAngle[i][COXA]);
+    Serial.print(", Femur Angle: ");
+    Serial.print(sol->legAngle[i][FEMUR]);
+    Serial.print(", Tibia Angle: ");
+    Serial.println(sol->legAngle[i][TIBIA]);
   }
 }
 
-//Moves the servos
-void moveServos(){
-  
-  bool complete = false; 
-  bool converged[4]={false,false,false,false};
-
-  //While servos still need to be adjusted
-  while(!complete){
-
-    //Iterate through each leg...
-    for(int i=0;i<LEGS;i++){
-      
-      //If the leg angles have not coverged on target...
-      if(!converged[i]){
-      
-          //Check latest differences
-          float dCAngle = legAngle[i][COXA_TARGET]-legAngle[i][COXA_CURRENT];
-          float dFAngle = legAngle[i][FEMUR_TARGET]-legAngle[i][FEMUR_CURRENT];
-          float dTAngle = legAngle[i][TIBIA_TARGET]-legAngle[i][TIBIA_CURRENT];
-      
-          //All leg angles are converged
-          if((dCAngle + dFAngle + dTAngle) == 0.0) {
-            
-            converged[i] = true; 
-            
-          } else {
-      
-            //Increment servo angles as necessary...
-            if(dCAngle != 0.0) {
-              legAngle[i][COXA_CURRENT]+=dCAngle/abs(dCAngle);
-              //Set PWM
-              delay(dt);
-            }
-            if(dFAngle != 0.0){
-              legAngle[i][FEMUR_CURRENT]+=dFAngle/abs(dFAngle);
-              //Set PWM
-              delay(dt);
-            }
-            if(dTAngle != 0.0){
-              legAngle[i][TIBIA_CURRENT]+=dTAngle/abs(dTAngle);
-              //Set PWM
-              delay(dt);
-            }
-          }       
-        }
-      }   
-    complete = (converged[LEG_1] && converged[LEG_2] && converged[LEG_3] && converged[LEG_4]); 
-  }  
+//Moves the servos based on data in solution struct
+void moveServos(struct Solution *sol){
+  for(int i=0;i<LEGS;i++){
+    for(int j=0;j<LEG_SERVOS;j++){
+      pwm.setPWM(servoPin[i][j], 0, map(sol->legAngle[i][j], servoDegMin[i][j], servoDegMax[i][j], pwmMin[i][j], pwmMax[i][j]));
+    }
+  }
 }
 
-//Calculates an IK solution for legs
-void legIK(int leg, float newX, float newY, float newZ, struct IKSolution* solution) {
-
-  // Calculate angles based on previously written IK leg code or jacobian if I ever understand it...
-  //ADD
+//Calculates a final IK solution for legs based on data passed in solution struct
+void legIK(struct Solution* sol) {
+ 
+  float theta1 = 0.0f;      //radians
+  float theta2 = 0.0f;      //radians
+  float theta3 = 0.0f;      //radians
+  float phi1 = 0.0f;        //radians
+  float phi2 = 0.0f;        //radians
+  float beta = 0.0f;        //radians
+  float L0 = 0.0f;          //cm
+  float L1 = 0.0f;          //cm
+  float L2 = 0.0f;          //cm
+  float x = 0.0f;           //cm
+  float y = 0.0f;           //cm
+  float z = 0.0f;           //cm
   
-  //Check within constraints....
-  //ADD
-  
-  //Set IKSolution values
-  solution->possible[leg] = true;
-  solution->coxa_angle[leg] = PI;
-  solution->femur_angle[leg] = PI;
-  solution->tibia_angle[leg] = PI;
-  solution->legPos[leg][X] = newX;
-  solution->legPos[leg][Y] = newY;
-  solution->legPos[leg][Z] = newZ;
-}
+  //Iterate through each leg...
+  for (int i=0; i<LEGS;i++){
 
-//Checks body angle constraints 
-bool checkBodyConstraints(float u, float v, float w){
-  return (abs(u)<=20.0 && abs(v)<=20.0 && abs(w)<=20.0); 
-}
+    x = sol->legPos[i][X];
+    y = sol->legPos[i][Y];
+    z = sol->legPos[i][Z];
 
-//Changes leg positioning based on body angles (Euler)
-// u == roll (rotations around x axis)
-// v == pitch (rotation around y axis)
-// w == yaw (rotation around z axis)
-void bodyIK(float u, float v, float w) {
+    theta1 = atan2(y,x);
+    L0 = sqrt((x*x) + (y*y));
+    L1 = L0 - COXA_LENGTH;
+    L2 = sqrt((L1*L1) + (z*z));
+    phi1 = atan(L1/z);
+    phi2 = acos(((L2*L2) + (FEMUR_LENGTH*FEMUR_LENGTH) - (TIBIA_LENGTH*TIBIA_LENGTH)) / (2 * L2 * FEMUR_LENGTH));
+    beta = acos(((FEMUR_LENGTH*FEMUR_LENGTH) + (TIBIA_LENGTH*TIBIA_LENGTH) - (L2*L2)) / (2 * FEMUR_LENGTH * TIBIA_LENGTH));
+    theta2 = phi1 + phi2;
+    theta3 = PI - beta;
 
-  //Check within general body angle constraints (in degrees)
-  bool valid = checkBodyConstraints(u, v, w);
-  
-  //Good so far...calculate new leg positions..
-  if(valid) {
-
-    u = toRad(u);
-    v = toRad(v);
-    w = toRad(w);
+    //Check within constraints for leg....ADD
+    bool possible = true;
     
-    //Body rotation matrix
+    //Set appropriate values in solution set
+    sol->possible[i] = possible;
+    sol->legAngle[i][COXA] = theta1*RAD_TO_DEG;
+    sol->legAngle[i][FEMUR] = theta2*RAD_TO_DEG;
+    sol->legAngle[i][TIBIA] = theta3*RAD_TO_DEG;
+  }
+}
+
+//Changes leg positioning based on translation in body x, y or z
+void translateBody(float dX, float dY, float dZ) {
+  
+  float bodyX = bodyPos[X]-=dX;
+  float bodyY = bodyPos[Y]-=dY;
+  float bodyZ = bodyPos[Z]+=dZ;
+  
+  //Check within translation constraints...ADD
+  bool valid = true; 
+  //(abs(bodyX) < 2.0f && abs(bodyY) < 2.0f && abs(bodyZ) < 2.0f);
+  
+  if (valid) {
+  
+    struct Solution sol; 
+    
+    for(int i=0;i<LEGS;i++){
+      float newX = legPos[i][X]-=dX;
+      float newY = legPos[i][Y]-=dY;
+      float newZ = legPos[i][Z]+=dZ;
+      sol.legPos[i][X]=newX;
+      sol.legPos[i][Y]=newY;
+      sol.legPos[i][Z]=newZ;
+      legIK(&sol);
+    }
+    
+    //If all legs have a valid IK solution...
+    if (sol.possible[LEG_1] && sol.possible[LEG_2] && sol.possible[LEG_3] && sol.possible[LEG_4]) {
+      setLegValues(&sol);
+      setBodyValues(0.0f,0.0f,0.0f,bodyX,bodyY,bodyZ);
+      printIKSolution(&sol);
+      printBodyInfo();
+      moveServos(&sol);
+    } 
+  }
+}
+
+//Changes leg positioning based on pitch/roll/yaw change
+void rotateBody(float dU, float dV, float dW) {
+
+  float u = bodyAngle[ROLL]+=dU;
+  float v = bodyAngle[PITCH]+=dU;
+  float w = bodyAngle[YAW]+=dW;
+  
+  //Check within body angle constraints
+  bool valid = (abs(u) < 20.0f && abs(v) < 20.0f && abs(w) < 20.0f);
+  
+  if (valid) {
+
+    //Convert to radians
+    u = u*DEG_TO_RAD; //roll(x axis)
+    v = v*DEG_TO_RAD; //pitch(y axis)
+    w = w*DEG_TO_RAD; //yaw(z axis)
+    
+    //Body rotation matrix R
     float R11 = cos(v)*cos(w);
     float R12 = sin(u)*sin(v)*cos(w) - cos(u)*sin(w);
     float R13 = sin(u)*sin(w) + cos(u)*sin(v)*cos(w);
@@ -247,115 +251,204 @@ void bodyIK(float u, float v, float w) {
     float R31 = -sin(v);
     float R32 = sin(u)*cos(v);
     float R33 = cos(u)*cos(v);
-    
-    float newX; //Leg X after R
-    float newY; //Leg Y after R
-    float newZ; //Leg Z after R
-    
-    struct IKSolution solution; //Stores leg solutions
 
-    //For each leg, calculate transformed foot position, then get IK solution
-    for(int i=0;i<LEGS;i++){  
-      newX = legPos[i][X]*R11 + legPos[i][Y]*R12 + legPos[i][Z]*R13;
-      newY = legPos[i][X]*R21 + legPos[i][Y]*R22 + legPos[i][Z]*R23;
-      newZ = legPos[i][X]*R31 + legPos[i][Y]*R32 + legPos[i][Z]*R33;
-      legIK(i, newX, newY, newZ, &solution);
-    }
-
-    //DEBUG...
-    //printIKSolution(&solution);
+    struct Solution sol; 
     
-    //Check colution set for failures
+    //For each leg, calculate transformed foot position, then get an IK solution for that leg
     for(int i=0;i<LEGS;i++){
-      if(solution.possible[i]==false){
-        valid = false; 
-      }
+      float newX = legPos[i][X]*R11 + legPos[i][Y]*R12 + legPos[i][Z]*R13;
+      float newY = legPos[i][X]*R21 + legPos[i][Y]*R22 + legPos[i][Z]*R23;
+      float newZ = legPos[i][X]*R31 + legPos[i][Y]*R32 + legPos[i][Z]*R33;
+      sol.legPos[i][X]=newX;
+      sol.legPos[i][Y]=newY;
+      sol.legPos[i][Z]=newZ;
+      legIK(&sol);
     }
 
-    //Still valid? Set new body angle values, leg angle targets....
-    if(valid) {
-      
-      bodyAngle[ROLL]=toDeg(u);
-      bodyAngle[PITCH]=toDeg(v);
-      bodyAngle[YAW]=toDeg(w);
-      
-      for(int i=0;i<LEGS;i++){
-        legAngle[i][COXA_TARGET] = toDeg(solution.coxa_angle[i]);
-        legAngle[i][FEMUR_TARGET] = toDeg(solution.femur_angle[i]);
-        legAngle[i][TIBIA_TARGET] = toDeg(solution.tibia_angle[i]);
-        legPos[i][X] = solution.legPos[i][X];
-        legPos[i][Y] = solution.legPos[i][Y];
-        legPos[i][Z] = solution.legPos[i][Z];
-      }  
+    //If all legs have a valid IK solution...
+    if (sol.possible[LEG_1] && sol.possible[LEG_2] && sol.possible[LEG_3] && sol.possible[LEG_4]) {
+      setLegValues(&sol);
+      setBodyValues(u*RAD_TO_DEG,v*RAD_TO_DEG,w*RAD_TO_DEG,0.0f,0.0f,0.0f);
+      moveServos(&sol);
     }
-
-    //Actually move the servos...
-    //moveServos();
   }
 }
 
 //Handle input from BT
-bool processCommand(char c) {
-  bool valid = true;
+bool processCommands() {
+
+  if (Serial.available() > 0) {
+    char c = Serial.read();
     switch(c){
+      case '`':
+        printBodyInfo();
+        break; 
+      case '1':
+        printLegInfo(1);        
+        break;
+      case '2':
+        printLegInfo(2);        
+        break;
+      case '3':
+        printLegInfo(3);        
+        break;
+      case '4':
+        printLegInfo(4);        
+        break;
+      case 'z':
+        translateBody(0.0,0.0,1.0);
+        break;
+      case 'x':
+        translateBody(0.0,0.0,-1.0);
+        break;
+      case 'w':
+        translateBody(1.0,0.0,0.0);
+        break;
+      case 's':
+        translateBody(-1.0,0.0,0.0);
+        break; 
+      case 'a':
+        translateBody(0.0,-1.0,0.0);
+        break;
+      case 'd':
+        translateBody(0.0,1.0,0.0);
+        break;        
       default:
-      valid = false;
-      break;
-    } 
-    return valid;
+        break;
+    }
+  }
 }
 
 void setup() {
-  
-  //Opens serial port, sets data rate to 9600 bps
-  Serial.begin(9600);
 
-  //Initialize servo shield
+  Serial.begin(9600);
   pwm.begin();
   pwm.setPWMFreq(60);
-
+  
   //Initialize body angles and position
   for(int i=0;i<3;i++){
       bodyAngle[i]=0.0;
       bodyPos[i]=0.0;
   }
 
-  //Initialize leg angles and positions
-  for(int i=0;i<4;i++){
-    for(int j=0;j<6;j++){
-      legAngle[i][j]=0.0;
-    }
-    for(int j=0;j<3;j++) {
-      legPos[i][j]=0.0;
+  //Servo pin mapping 
+  servoPin[LEG_1][COXA]=0;
+  servoPin[LEG_1][FEMUR]=1;
+  servoPin[LEG_1][TIBIA]=2;
+  servoPin[LEG_2][COXA]=3;
+  servoPin[LEG_2][FEMUR]=4;
+  servoPin[LEG_2][TIBIA]=5;
+  servoPin[LEG_3][COXA]=6;
+  servoPin[LEG_3][FEMUR]=7;
+  servoPin[LEG_3][TIBIA]=8;
+  servoPin[LEG_4][COXA]=9;
+  servoPin[LEG_4][FEMUR]=10;
+  servoPin[LEG_4][TIBIA]=11;
+
+  //Servo PWM min/max values
+  pwmMin[LEG_1][COXA]=275;
+  pwmMax[LEG_1][COXA]=520;  
+  pwmMin[LEG_1][FEMUR]=275;
+  pwmMax[LEG_1][FEMUR]=475;
+  pwmMin[LEG_1][TIBIA]=255;
+  pwmMax[LEG_1][TIBIA]=550;
+  
+  pwmMin[LEG_2][COXA]=200;
+  pwmMax[LEG_2][COXA]=450;
+  pwmMin[LEG_2][FEMUR]=250;
+  pwmMax[LEG_2][FEMUR]=440;
+  pwmMin[LEG_2][TIBIA]=140;
+  pwmMax[LEG_2][TIBIA]=420;
+  
+  pwmMin[LEG_3][COXA]=230;
+  pwmMax[LEG_3][COXA]=470;
+  pwmMin[LEG_3][FEMUR]=250;
+  pwmMax[LEG_3][FEMUR]=440;
+  pwmMin[LEG_3][TIBIA]=260;
+  pwmMax[LEG_3][TIBIA]=540;
+
+  pwmMin[LEG_4][COXA]=210;
+  pwmMax[LEG_4][COXA]=440;
+  pwmMin[LEG_4][FEMUR]=260;
+  pwmMax[LEG_4][FEMUR]=460;
+  pwmMin[LEG_4][TIBIA]=130;
+  pwmMax[LEG_4][TIBIA]=410;
+  
+  //Servo degree-pwm mapping
+  servoDegMin[LEG_1][COXA]=0;
+  servoDegMax[LEG_1][COXA]=90;
+  servoDegMin[LEG_1][FEMUR]=135;
+  servoDegMax[LEG_1][FEMUR]=45;
+  servoDegMin[LEG_1][TIBIA]=120;
+  servoDegMax[LEG_1][TIBIA]=0;  
+
+  servoDegMin[LEG_2][COXA]=-90;
+  servoDegMax[LEG_2][COXA]=0;
+  servoDegMin[LEG_2][FEMUR]=45;
+  servoDegMax[LEG_2][FEMUR]=135;
+  servoDegMin[LEG_2][TIBIA]=0;
+  servoDegMax[LEG_2][TIBIA]=120;
+
+  servoDegMin[LEG_3][COXA]=-180;
+  servoDegMax[LEG_3][COXA]=-90;
+  servoDegMin[LEG_3][FEMUR]=135;
+  servoDegMax[LEG_3][FEMUR]=45;
+  servoDegMin[LEG_3][TIBIA]=120;
+  servoDegMax[LEG_3][TIBIA]=0;  
+
+  servoDegMin[LEG_4][COXA]=90;
+  servoDegMax[LEG_4][COXA]=180;
+  servoDegMin[LEG_4][FEMUR]=45;
+  servoDegMax[LEG_4][FEMUR]=135;
+  servoDegMin[LEG_4][TIBIA]=0;
+  servoDegMax[LEG_4][TIBIA]=120;  
+
+  //Starting pos/angle - Right front (+y and +x)
+  legPos[LEG_1][X]=4.8;
+  legPos[LEG_1][Y]=4.8;
+  legPos[LEG_1][Z]=7.1;
+  legAngle[LEG_1][COXA]=45.0;
+  legAngle[LEG_1][FEMUR]=89.0;
+  legAngle[LEG_1][TIBIA]=90.0;
+  
+  //Starting pos/angle - Left front (-y and +x)
+  legPos[LEG_2][X]=4.8;
+  legPos[LEG_2][Y]=-4.8;
+  legPos[LEG_2][Z]=7.1;
+  legAngle[LEG_2][COXA]=-45.0;
+  legAngle[LEG_2][FEMUR]=89.0;
+  legAngle[LEG_2][TIBIA]=90.0;
+  
+  //Starting pos/angle - Left rear (-y and -x)
+  legPos[LEG_3][X]=-4.8;
+  legPos[LEG_3][Y]=-4.8;
+  legPos[LEG_3][Z]=7.1;
+  legAngle[LEG_3][COXA]=-135.0;
+  legAngle[LEG_3][FEMUR]=89.0;
+  legAngle[LEG_3][TIBIA]=90.0;
+    
+  //Starting pos/angle - ]Right rear (+y and -x)
+  legPos[LEG_4][X]=-4.8;
+  legPos[LEG_4][Y]=4.8;
+  legPos[LEG_4][Z]=7.1;
+  legAngle[LEG_4][COXA]=135.0;
+  legAngle[LEG_4][FEMUR]=89.0;
+  legAngle[LEG_4][TIBIA]=90.0;
+
+  //Set initial leg positions
+  for(int i=0;i<LEGS;i++){
+    for(int j=0;j<LEG_SERVOS;j++){
+      pwm.setPWM(servoPin[i][j], 0, map(legAngle[i][j], servoDegMin[i][j], servoDegMax[i][j], pwmMin[i][j], pwmMax[i][j]));
     }
   }
-
-  //Set default leg position
-  legPos[LEG_1][X] = 5.0;
-  legPos[LEG_1][Y] = 5.0;
-  legPos[LEG_1][Z] = 5.0;
-    
-  //Send rotation request to body
-  //bodyIK(roll, pitch, yaw)
-  //-roll is left, +roll is right (max 20.0)
-  //-pitch is down, +pitch is up (max 20.0)
-  //-yaw is left, +yaw is right (max 20.0)
-  bodyIK(-10.0,0.0,0.0);
   
-  //Check result...
-  printBodyInfo();
-  printLegInfo(LEG_1);
-
   yield();
 }
 
 
 void loop() {
-  
-//Receive input and process commands...
-//  if (Serial.available() > 0) {
-//    char c = Serial.read();
-//    processCommand(c);
-//  }
 
+  //Wait for commands
+  processCommands();
+  
 }

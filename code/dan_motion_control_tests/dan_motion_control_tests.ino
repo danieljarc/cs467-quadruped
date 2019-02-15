@@ -15,12 +15,11 @@ int deg = 0;
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
 void setup() {
-
   Serial.begin(9600);
   pwm.begin();
   pwm.setPWMFreq(60); 
-  SERVO_MIN[TEST_SERVO] = 160;
-  SERVO_MAX[TEST_SERVO] = 600;
+  SERVO_MIN[TEST_SERVO] = 120;
+  SERVO_MAX[TEST_SERVO] = 550;
   yield();
 }
 
