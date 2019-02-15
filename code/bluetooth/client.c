@@ -28,7 +28,7 @@ int getLine( char* prompt ,char* rtnBuffer, int bufferSize){
 	}
 	return 0;
 }
-/*Heavily inspired by http://people.csail.mit.edu/albert/bluez-intro/x502.html#rfcomm-server.c*/
+/* Connection parameterssheavily inspired by http://people.csail.mit.edu/albert/bluez-intro/x502.html#rfcomm-server.c*/
 int main(int argc, char **argv)
 {
 
@@ -45,7 +45,7 @@ int main(int argc, char **argv)
 
     // connect to server
     status = connect(sock, (struct sockaddr *)&addr, sizeof(addr));
-	if(status <= 0){ //If socket connected continue else abort
+	if(status == 0){ //If socket connected continue else abort
 
    		status = write(sock, "Connected.", 10);
 		while(true){
@@ -54,11 +54,11 @@ int main(int argc, char **argv)
 		
 			if(strcmp(buffer, "exit\n")==0)
 				break;
-
 //			printf("%d\n", strSize);
 //			printf("(%s)", buffer);
 //    	   	status = send(sock, buffer, sizeof(buffer), 0);
-    	   	status = send(sock, buffer, strlen(buffer), 0); // Sending strlen sends only chars not null
+			if(strSize > 0)
+    	   		status = send(sock, buffer, strSize,0); // Sending strlen sends only chars not null
 		}
 	}else printf("Error: Connection error. status %d\n", status);	
 	printf("Exit bluetooth client\n");
