@@ -1,5 +1,5 @@
 # CS467 Quadruped Project
-[Add description]
+Bluetooth controlled quadruped robot.
 ## Current items
 - Servo centering code
 - Leg IK tests
