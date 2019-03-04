@@ -2,7 +2,7 @@
 * CS467 - Quadruped Movement and Input Processing
 * Author: Daniel Jarc (jarcd)
 * Date: March 18, 2019
-* Description: Processes user input to serial, calculates servo angles
+* Description: Processes user input, calculates servo angles
 * using IK, executes commands. 
 *********************************************************************/
 
@@ -25,16 +25,16 @@ Quadruped::Quadruped(SoftwareSerial * bt_module) {
 void Quadruped::initialize(){
 
   //Used for printing quadruped info while connected
-  //Serial.begin(9600);
+  Serial.begin(9600);
 
   //Servo shield initialization
   pwm.begin();
   pwm.setPWMFreq(60);
   
   //Servo pin mapping 
-  servoPin[LEG_1][COXA]=0;
-  servoPin[LEG_1][FEMUR]=1;
-  servoPin[LEG_1][TIBIA]=2;
+  servoPin[LEG_1][COXA]=12;
+  servoPin[LEG_1][FEMUR]=13;
+  servoPin[LEG_1][TIBIA]=14;
   servoPin[LEG_2][COXA]=3;
   servoPin[LEG_2][FEMUR]=4;
   servoPin[LEG_2][TIBIA]=5;
@@ -99,7 +99,7 @@ void Quadruped::initialize(){
 
   //Center body
   center();
-//  moveServos();
+  moveServos();
   yield(); 
 }
 
@@ -112,78 +112,77 @@ void Quadruped::processCommands(){
 
   if (bt->available() > 0) {
     char c = bt->read();
-    bt->println(c);
-//    switch(c){
-//      case '`':                       //Print quadruped info
-//        printQuadInfo();
-//        break;
-//      case ',':                       //Sit
-//        sit();
-//        break;
-//      case '.':                       //Stand
-//        stand();
-//        break;
-//      case '/':                       //Center body
-//        center();
-//        moveServos();
-//        break;
-//      case 'q':                       //Translate body upward
-//        translateBody(0.0,0.0,1.0);
-//        break;
-//      case 'e':                       //Translate body downward
-//        translateBody(0.0,0.0,-1.0);
-//        break;
-//      case 'w':                       //Translate body forward
-//        translateBody(1.0,0.0,0.0);
-//        break;
-//      case 's':                       //Translate body back
-//        translateBody(-1.0,0.0,0.0);
-//        break; 
-//      case 'a':                       //Translate body left
-//        translateBody(0.0,-1.0,0.0);
-//        break;
-//      case 'd':                       //Translate body right
-//        translateBody(0.0,1.0,0.0);
-//        break;
-//      case 'u':                       //Yaw body left
-//        rotateBody(0.0,0.0,-10.0);
-//        break;
-//      case 'o':                       //Yaw body right
-//        rotateBody(0.0,0.0,10.0);
-//        break;
-//      case 'i':                       //Pitch body down
-//        rotateBody(0.0,-10.0,0.0);
-//        break; 
-//      case 'k':                       //Pitch body up
-//        rotateBody(0.0,10.0,0.0);
-//        break;
-//      case 'j':                       //Roll body left
-//        rotateBody(-10.0,0.0,0.0);
-//        break;
-//      case 'l':                       //Roll body right
-//        rotateBody(10.0,0.0,0.0);
-//        break;
-//      case 't':                       //Walk forward
-//        walk(FORWARD);
-//        break;
-//      case 'f':                       //Walk left
-//        walk(LEFT);
-//        break;   
-//      case 'h':                       //Walk right
-//        walk(RIGHT);
-//        break;
-//      case 'g':                       //Walk back
-//        walk(BACK);
-//        break;
-//      case 'r':                       //Turn left
-//        turn(LEFT);
-//        break;
-//      case 'y':                       //Turn right
-//        turn(RIGHT);
-//        break;
-//      default:
-//        break;
-//    }
+    switch(c){
+      case '`':                       //Print quadruped info
+        printQuadInfo();
+        break;
+      case ',':                       //Sit
+        sit();
+        break;
+      case '.':                       //Stand
+        stand();
+        break;
+      case '/':                       //Center body
+        center();
+        moveServos();
+        break;
+      case 'q':                       //Translate body upward
+        translateBody(0.0,0.0,1.0);
+        break;
+      case 'e':                       //Translate body downward
+        translateBody(0.0,0.0,-1.0);
+        break;
+      case 'w':                       //Translate body forward
+        translateBody(1.0,0.0,0.0);
+        break;
+      case 's':                       //Translate body back
+        translateBody(-1.0,0.0,0.0);
+        break; 
+      case 'a':                       //Translate body left
+        translateBody(0.0,-1.0,0.0);
+        break;
+      case 'd':                       //Translate body right
+        translateBody(0.0,1.0,0.0);
+        break;
+      case 'u':                       //Yaw body left
+        rotateBody(0.0,0.0,-10.0);
+        break;
+      case 'o':                       //Yaw body right
+        rotateBody(0.0,0.0,10.0);
+        break;
+      case 'i':                       //Pitch body down
+        rotateBody(0.0,-10.0,0.0);
+        break; 
+      case 'k':                       //Pitch body up
+        rotateBody(0.0,10.0,0.0);
+        break;
+      case 'j':                       //Roll body left
+        rotateBody(-10.0,0.0,0.0);
+        break;
+      case 'l':                       //Roll body right
+        rotateBody(10.0,0.0,0.0);
+        break;
+      case 't':                       //Walk forward
+        walk(FORWARD);
+        break;
+      case 'f':                       //Walk left
+        walk(LEFT);
+        break;   
+      case 'h':                       //Walk right
+        walk(RIGHT);
+        break;
+      case 'g':                       //Walk back
+        walk(BACK);
+        break;
+      case 'r':                       //Turn left
+        turn(LEFT);
+        break;
+      case 'y':                       //Turn right
+        turn(RIGHT);
+        break;
+      default:
+        break;
+    }
   }
 }
 
