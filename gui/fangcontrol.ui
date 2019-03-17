@@ -51,7 +51,7 @@
          <item row="2" column="0">
           <widget class="QLabel" name="walk_g1_m">
            <property name="text">
-            <string>Walk - Gait 1</string>
+            <string>Walk</string>
            </property>
           </widget>
          </item>
