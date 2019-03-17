@@ -256,16 +256,12 @@ void FangControl::on_connect_button_clicked(bool connect_enable)
         static const QString serviceUuid("e8e10f95-1a70-4b27-9ccf-02010264e9c"); //Lifted from bluetooth chat example
         qDebug() << "service id is: " << serviceUuid;
         //socket->connectToService(QBluetoothAddress(btAddr), QBluetoothUuid(serviceUuid), QIODevice::ReadWrite);
-        socket->connectToService(QBluetoothAddress(btAddr), QBluetoothUuid(QBluetoothUuid::SerialPort));
-        qDebug("test...");
         connect(socket, &QBluetoothSocket::readyRead, this, &FangControl::readSocket);
         connect(socket, &QBluetoothSocket::connected, this, QOverload<>::of(&FangControl::connected));
         connect(socket, &QBluetoothSocket::disconnected, this, &FangControl::disconnected);
-        connect(socket, QOverload<QBluetoothSocket::SocketError>::of(&QBluetoothSocket::error),
-                this, &FangControl::onSocketErrorOccurred);
-        ui->status_label->setText("<b style=\"color:green;\">Connected</b>");
-        qDebug("Connected.");
-        ui->connect_button->setEnabled(false);
+        //connect(socket, QOverload<QBluetoothSocket::SocketError>::of(&QBluetoothSocket::error),   //Commented for Demo Purpose
+        //        this, &FangControl::onSocketErrorOccurred);
+        socket->connectToService(QBluetoothAddress(btAddr), QBluetoothUuid(QBluetoothUuid::SerialPort));
     }
 }
 
@@ -277,7 +273,6 @@ void FangControl::on_connect_button_clicked(bool connect_enable)
  *********************************************/
 void FangControl::on_mode_button_clicked()
 {
-
     if(!state_m->configuration().contains(CONNECTED)) {
         ui->keypad_groupBox->setEnabled(true);
         ui->l1_button->setEnabled(true);
@@ -319,6 +314,10 @@ void FangControl::onSocketErrorOccurred(QBluetoothSocket::SocketError error)
  *********************************************/
 void FangControl::connected()
 {
+    qDebug() << socket->state();
+    ui->status_label->setText("<b style=\"color:green;\">Connected</b>");
+    qDebug("Connected.");
+    ui->connect_button->setEnabled(false);
     emit connected(socket->peerName());
 }
 

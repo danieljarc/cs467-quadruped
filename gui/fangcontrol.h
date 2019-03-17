@@ -81,8 +81,8 @@ private:
     bool arduino_available;
 
     QBluetoothSocket *socket = nullptr; // Sets up RFCOMM socket similar to TCP socket
-  //  QString btAddr = "98:D3:11:FC:1B:B0"; // Hexidecimal address of bluetooth device
-      QString btAddr = "20:18:02:05:28:79"; // Hexidecimal address of bluetooth device
+    QString btAddr = "98:D3:11:FC:1B:B0"; // Hexidecimal address of bluetooth device    //Michael's Bluetooth Address
+  //    QString btAddr = "20:18:02:05:28:79"; // Hexidecimal address of bluetooth device    //Dan's Bluetooth Address
 };
 
 #endif // FANGCONTROL_H
